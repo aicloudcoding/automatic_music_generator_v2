@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amg"
+version = "2.0.0"
+description = "Automatic Music Generator 2.0 - a Transformer that writes classical-style piano music, with a web app"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "tensorflow>=2.16",
+    "keras>=3",
+    "music21>=9",
+    "numpy",
+    "tqdm",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[project.scripts]
+amg-train = "amg.train:main"
+amg-generate = "amg.generate:main"
+amg-check-gpu = "amg.check_gpu:main"
+amg-web = "amg.web.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"amg.web" = ["static/*.html", "static/fonts/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

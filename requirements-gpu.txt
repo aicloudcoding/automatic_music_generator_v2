@@ -1,0 +1,10 @@
+# GPU training on Linux / WSL2 with an NVIDIA card. Same as requirements.txt, with CUDA-enabled TensorFlow.
+tensorflow[and-cuda]>=2.16
+keras>=3
+music21>=9
+numpy
+tqdm
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pytest
+httpx

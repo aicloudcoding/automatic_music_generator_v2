@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automatic Music Generator</title>
+<style>
+  @font-face { font-family: "Quicksand"; src: url("/static/fonts/quicksand-latin-wght-normal.woff2") format("woff2");
+               font-weight: 300 700; font-display: swap; }
+  @font-face { font-family: "Nunito"; src: url("/static/fonts/nunito-latin-wght-normal.woff2") format("woff2");
+               font-weight: 200 1000; font-display: swap; }
+
+  :root {
+    --sky: linear-gradient(180deg, #9fcdfb 0%, #c9e4ff 38%, #eaf4ff 72%, #f6faff 100%);
+    --panel: rgba(255, 255, 255, 0.72); --panel-edge: rgba(255, 255, 255, 0.9);
+    --ink: #15314f; --muted: #5a7393; --line: #d4e4f6;
+    --accent: #2f7de1; --accent-2: #5aaaf6; --accent-soft: #e1eeff; --on-accent: #ffffff;
+    --roll-bg: rgba(255, 255, 255, 0.65); --roll-grid: #dae7f6;
+    --note: #2f7de1; --note-chord: #6a62d8; --focus: #2f7de1;
+    --shadow: 0 12px 32px rgba(38, 92, 160, 0.14), 0 2px 6px rgba(38, 92, 160, 0.06);
+    --cloud: rgba(255, 255, 255, 0.92);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --sky: linear-gradient(180deg, #081429 0%, #0f2244 45%, #1a3563 100%);
+      --panel: rgba(18, 34, 64, 0.66); --panel-edge: rgba(150, 185, 240, 0.16);
+      --ink: #e7f0ff; --muted: #9db3d6; --line: rgba(150, 185, 240, 0.2);
+      --accent: #7db6ff; --accent-2: #a5ccff; --accent-soft: rgba(125, 182, 255, 0.15); --on-accent: #0b1a33;
+      --roll-bg: rgba(8, 20, 42, 0.55); --roll-grid: rgba(150, 185, 240, 0.13);
+      --note: #86c1ff; --note-chord: #b4acff; --focus: #a5ccff;
+      --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+      --cloud: rgba(200, 220, 255, 0.07);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { min-height: 100%; background: var(--sky); background-attachment: fixed; }
+  body { margin: 0; color: var(--ink); font: 16px/1.5 "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+         min-height: 100vh; overflow-x: hidden; }
+
+  /* Clouds drifting slowly behind everything. */
+  .sky { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .cloud { position: absolute; left: 0; fill: var(--cloud); filter: blur(0.5px);
+           animation: drift linear infinite; will-change: transform; }
+  .cloud.c1 { top: 6%;  width: 260px; animation-duration: 140s; animation-delay: -20s; }
+  .cloud.c2 { top: 22%; width: 180px; animation-duration: 110s; animation-delay: -75s; opacity: .8; }
+  .cloud.c3 { top: 48%; width: 340px; animation-duration: 180s; animation-delay: -120s; opacity: .7; }
+  .cloud.c4 { top: 70%; width: 220px; animation-duration: 130s; animation-delay: -40s; opacity: .85; }
+  .cloud.c5 { top: 86%; width: 300px; animation-duration: 160s; animation-delay: -95s; opacity: .6; }
+  @keyframes drift { from { transform: translateX(-380px); } to { transform: translateX(calc(100vw + 40px)); } }
+  @media (prefers-reduced-motion: reduce) { .cloud { animation: none; transform: translateX(10vw); }
+    .cloud.c2 { transform: translateX(70vw); } .cloud.c3 { transform: translateX(40vw); } .cloud.c4 { transform: translateX(80vw); } }
+
+  main { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; padding: 40px 16px 48px; }
+  header h1 { font-family: "Quicksand", "Nunito", sans-serif; font-weight: 700; font-size: 2.2rem; margin: 0;
+              letter-spacing: -0.01em; }
+  header p { margin: 4px 0 26px; color: var(--muted); }
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 22px; padding: 22px;
+           box-shadow: var(--shadow); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+           min-width: 0; }
+  .field { margin-bottom: 18px; }
+  .field label { display: flex; justify-content: space-between; font-family: "Quicksand", sans-serif; font-weight: 700; margin-bottom: 6px; }
+  .field output { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700; }
+  .hint { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select { width: 100%; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line);
+           background: var(--panel); color: var(--ink); font: inherit; }
+  details { border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: 18px; }
+  summary { cursor: pointer; color: var(--muted); font-weight: 700; margin-bottom: 12px; }
+  button { font: 700 0.95rem "Quicksand", "Nunito", sans-serif; border-radius: 999px; cursor: pointer; padding: 10px 18px;
+           border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+           transition: transform .08s, box-shadow .15s, border-color .15s; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button.primary { width: 100%; border: 0; padding: 13px; font-size: 1.02rem; color: var(--on-accent);
+                   background: linear-gradient(135deg, var(--accent-2), var(--accent));
+                   box-shadow: 0 6px 18px rgba(47, 125, 225, 0.35); }
+  button.primary:hover:not(:disabled) { box-shadow: 0 8px 22px rgba(47, 125, 225, 0.45); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .toolbar .meta { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
+  .roll { width: 100%; height: 280px; display: block; border-radius: 14px; border: 1px solid var(--line);
+          background: var(--roll-bg); }
+  .empty { height: 280px; display: grid; place-items: center; text-align: center; color: var(--muted);
+           border: 1.5px dashed var(--line); border-radius: 14px; padding: 16px; background: var(--roll-bg); }
+  .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tokens span { font: 0.78rem ui-monospace, "Cascadia Mono", Consolas, monospace; padding: 3px 9px;
+                 border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+  .tokens span.on { background: var(--accent); color: var(--on-accent); }
+  .error { color: #c0392b; margin-top: 12px; }
+  @media (prefers-color-scheme: dark) { .error { color: #ffb4ab; } }
+  footer { margin-top: 20px; color: var(--muted); font-size: 0.82rem; }
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true">
+  <svg width="0" height="0" style="position:absolute"><symbol id="cloud" viewBox="0 0 200 90">
+    <path d="M40 82a30 30 0 0 1-6-59 34 34 0 0 1 58-12 28 28 0 0 1 44 6 30 30 0 0 1 38 26 24 24 0 0 1-6 39z"/></symbol></svg>
+  <svg class="cloud c1" viewBox="0 0 200 90"><use href="#cloud"/></svg>
+  <svg class="cloud c2" viewBox="0 0 200 90"><use href="#cloud"/></svg>
+  <svg class="cloud c3" viewBox="0 0 200 90"><use href="#cloud"/></svg>
+  <svg class="cloud c4" viewBox="0 0 200 90"><use href="#cloud"/></svg>
+  <svg class="cloud c5" viewBox="0 0 200 90"><use href="#cloud"/></svg>
+</div>
+<main>
+  <header>
+    <h1>Automatic Music Generator</h1>
+    <p>Pick how many notes you want, and the model writes a short piano phrase.</p>
+  </header>
+
+  <div class="layout">
+    <form class="panel" id="form">
+      <div class="field">
+        <label for="notes">Notes <output id="notesOut">16</output></label>
+        <input type="range" id="notes" min="5" max="50" value="16">
+        <div class="hint">Each step is one note or one chord struck together.</div>
+      </div>
+
+      <div class="field" id="composerField" hidden>
+        <label for="composer">Composer style</label>
+        <select id="composer"></select>
+      </div>
+
+      <div class="field">
+        <label for="temperature">Creativity <output id="temperatureOut">0.9</output></label>
+        <input type="range" id="temperature" min="0" max="1.5" step="0.05" value="0.9">
+        <div class="hint">Lower is safer and more repetitive; higher takes risks.</div>
+      </div>
+
+      <details>
+        <summary>More options</summary>
+        <div class="field">
+          <label for="topk">Top-k <output id="topkOut">20</output></label>
+          <input type="range" id="topk" min="1" max="60" value="20">
+          <div class="hint">Only sample from this many likeliest tokens.</div>
+        </div>
+        <div class="field">
+          <label for="bpm">Tempo (BPM) <output id="bpmOut">90</output></label>
+          <input type="range" id="bpm" min="50" max="160" value="90">
+        </div>
+      </details>
+
+      <button class="primary" id="generate" type="submit">Generate</button>
+      <div class="error" id="error" role="alert"></div>
+    </form>
+
+    <section class="panel" aria-live="polite">
+      <div class="toolbar">
+        <button id="play" type="button" disabled>▶ Play</button>
+        <button id="download" type="button" disabled>Download MIDI</button>
+        <span class="meta" id="meta"></span>
+      </div>
+      <div class="empty" id="empty">Your piece will appear here as a piano roll.</div>
+      <canvas class="roll" id="roll" hidden></canvas>
+      <div class="tokens" id="tokens"></div>
+    </section>
+  </div>
+
+  <footer id="footer"></footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let piece = null;          // last response from /api/generate
+let audio = null;          // { ctx, start, raf } while playing
+let names = {};            // composer folder name -> display name
+
+for (const id of ["notes", "temperature", "topk", "bpm"]) {
+  const el = $(id), out = $(id + "Out");
+  el.addEventListener("input", () => { out.textContent = el.value; });
+}
+
+async function loadInfo() {
+  const info = await (await fetch("/api/info")).json();
+  names = info.composer_names || {};
+  $("notes").min = info.min_notes; $("notes").max = info.max_notes;
+  if (info.composers.length) {
+    $("composerField").hidden = false;
+    const sorted = [...info.composers].sort((a, b) => (names[a] || a).localeCompare(names[b] || b));
+    $("composer").innerHTML = sorted.map((c) => `<option value="${c}">${names[c] || c}</option>`).join("");
+  }
+  const arch = info.arch === "transformer" ? "Transformer" : "LSTM";
+  const n = info.composers.length || (info.trained_on || []).length;
+  $("footer").textContent = `${arch} model · run ${info.run}` + (n ? ` · trained on ${n} composer${n > 1 ? "s" : ""}` : "") +
+    " · MIDI data from piano-midi.de (CC BY-SA 3.0 DE)";
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  stop();
+  $("error").textContent = "";
+  $("generate").disabled = true; $("generate").textContent = "Composing…";
+  try {
+    const body = {
+      notes: +$("notes").value, temperature: +$("temperature").value,
+      top_k: +$("topk").value, bpm: +$("bpm").value,
+      composer: $("composerField").hidden ? null : $("composer").value,
+    };
+    const res = await fetch("/api/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Generation failed.");
+    piece = data;
+    show();
+  } catch (err) {
+    $("error").textContent = err.message;
+  } finally {
+    $("generate").disabled = false; $("generate").textContent = "Generate";
+  }
+});
+
+function show() {
+  $("empty").hidden = true; $("roll").hidden = false;
+  $("play").disabled = false; $("download").disabled = false;
+  const beats = totalBeats();
+  const secs = beats * 60 / piece.bpm;
+  $("meta").textContent = `${piece.events.length} notes · ${secs.toFixed(1)} s` + (piece.composer ? ` · ${names[piece.composer] || piece.composer}` : "");
+  $("tokens").innerHTML = piece.events.map((e, i) => `<span data-i="${i}">${e.token}</span>`).join("");
+  draw(-1);
+}
+
+const totalBeats = () => piece.events.reduce((m, e) => Math.max(m, e.start + e.dur), 0);
+
+function draw(beat) {
+  const c = $("roll"), dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext("2d"); g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const pitches = piece.events.flatMap((e) => e.pitches);
+  const lo = Math.min(...pitches) - 2, hi = Math.max(...pitches) + 2;
+  const span = Math.max(hi - lo, 12), beats = totalBeats() || 1;
+  const pad = 8, rowH = (h - pad * 2) / span, x = (b) => pad + (b / beats) * (w - pad * 2);
+  // Beat grid, stronger every 4 beats.
+  for (let b = 0; b <= beats; b++) {
+    g.fillStyle = css.getPropertyValue("--roll-grid");
+    g.fillRect(x(b), 0, b % 4 === 0 ? 1.5 : 0.5, h);
+  }
+  piece.events.forEach((e) => {
+    g.fillStyle = css.getPropertyValue(e.pitches.length > 1 ? "--note-chord" : "--note");
+    for (const p of e.pitches) {
+      const y = pad + (hi - p) * rowH;
+      g.globalAlpha = beat < 0 || (beat >= e.start && beat < e.start + e.dur) ? 1 : 0.55;
+      roundRect(g, x(e.start) + 1, y - rowH * 0.45, Math.max(x(e.start + e.dur) - x(e.start) - 2, 3), Math.max(rowH * 0.9, 3), 2);
+    }
+  });
+  g.globalAlpha = 1;
+  if (beat >= 0) { g.fillStyle = css.getPropertyValue("--ink"); g.fillRect(x(beat), 0, 2, h); }
+}
+
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.fill();
+}
+
+// Simple piano-like voice: triangle + quiet octave sine with a fast attack and a long decay.
+function playTone(ctx, out, midi, when, seconds) {
+  const f = 440 * Math.pow(2, (midi - 69) / 12);
+  const env = ctx.createGain();
+  const ring = Math.min(seconds + 0.8, 4);
+  env.gain.setValueAtTime(0.0001, when);
+  env.gain.exponentialRampToValueAtTime(0.22, when + 0.008);
+  env.gain.exponentialRampToValueAtTime(0.08, when + 0.25);
+  env.gain.setValueAtTime(0.08, when + seconds);
+  env.gain.exponentialRampToValueAtTime(0.0001, when + ring);
+  env.connect(out);
+  for (const [type, mult, level] of [["triangle", 1, 1], ["sine", 2, 0.25]]) {
+    const o = ctx.createOscillator(), gl = ctx.createGain();
+    o.type = type; o.frequency.value = f * mult; gl.gain.value = level;
+    o.connect(gl).connect(env); o.start(when); o.stop(when + ring + 0.05);
+  }
+}
+
+function play() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3200;
+  const comp = ctx.createDynamicsCompressor();
+  lp.connect(comp).connect(ctx.destination);
+  const spb = 60 / piece.bpm, start = ctx.currentTime + 0.1;
+  for (const e of piece.events)
+    for (const p of e.pitches) playTone(ctx, lp, p, start + e.start * spb, e.dur * spb);
+  audio = { ctx, start };
+  $("play").textContent = "■ Stop";
+  const beats = totalBeats(), chips = [...$("tokens").children];
+  const tick = () => {
+    const beat = (ctx.currentTime - start) / spb;
+    if (beat > beats + 1) return stop();
+    draw(Math.max(beat, 0));
+    chips.forEach((s, i) => s.classList.toggle("on", beat >= piece.events[i].start && beat < piece.events[i].start + piece.events[i].dur));
+    audio.raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stop() {
+  if (!audio) return;
+  cancelAnimationFrame(audio.raf); audio.ctx.close(); audio = null;
+  $("play").textContent = "▶ Play";
+  [...$("tokens").children].forEach((s) => s.classList.remove("on"));
+  if (piece) draw(-1);
+}
+
+$("play").addEventListener("click", () => (audio ? stop() : play()));
+$("download").addEventListener("click", () => {
+  const bytes = Uint8Array.from(atob(piece.midi_base64), (ch) => ch.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: "audio/midi" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: piece.filename });
+  a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+window.addEventListener("resize", () => piece && !audio && draw(-1));
+
+loadInfo().catch(() => { $("error").textContent = "Couldn't reach the server."; });
+</script>
+</body>
+</html>

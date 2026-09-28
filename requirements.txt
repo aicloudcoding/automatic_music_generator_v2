@@ -1,0 +1,11 @@
+# Everything needed to run the web app, generate and train (CPU; works on Windows, macOS and Linux).
+# For NVIDIA GPU training on Linux / WSL2, use requirements-gpu.txt instead.
+tensorflow>=2.16
+keras>=3
+music21>=9
+numpy
+tqdm
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pytest
+httpx
