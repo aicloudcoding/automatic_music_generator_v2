@@ -3,33 +3,44 @@ importScripts("engine.js");
 
 let ready = null;  // Promise of {model, manifest, seeds}
 
-/** Fetch the weights, reporting progress so the page can show "Loading model… 45%". */
-async function download(url) {
+/**
+ * Fetch the weights, reporting progress so the page can show "Loading model… 45%".
+ * Progress is measured against the size the manifest expects, not Content-Length:
+ * servers like GitHub Pages compress the file in transit, and then Content-Length
+ * is the compressed size while the stream delivers the uncompressed bytes.
+ */
+async function download(url, expectedBytes) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`Couldn't download the model (${r.status}).`);
-  const total = Number(r.headers.get("Content-Length")) || 0;
-  if (!r.body || !total) return r.arrayBuffer();
-  const reader = r.body.getReader(), out = new Uint8Array(total);
+  if (!r.body) return r.arrayBuffer();
+  const reader = r.body.getReader(), chunks = [];
   let loaded = 0, lastPct = -1;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    if (loaded + value.length > total) return (await new Response(out.slice(0, loaded)).arrayBuffer()); // size changed
-    out.set(value, loaded);
+    chunks.push(value);
     loaded += value.length;
-    const pct = Math.floor((loaded / total) * 100);
+    const pct = Math.min(99, Math.floor((loaded / expectedBytes) * 100));
     if (pct !== lastPct) { lastPct = pct; postMessage({ type: "progress", pct }); }
   }
-  return out.buffer.slice(0, loaded);
+  const out = new Uint8Array(loaded);
+  let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.length; }
+  return out.buffer;
 }
 
 function load(base) {
   ready = (async () => {
-    const [manifest, seeds, weights] = await Promise.all([
-      fetch(base + "model/manifest.json").then((r) => r.json()),
+    const manifest = await fetch(base + "model/manifest.json").then((r) => r.json());
+    const count = manifest.tensors.reduce((n, t) => n + t.shape.reduce((a, b) => a * b, 1), 0);
+    const bytes = count * (manifest.dtype === "float32" ? 4 : 2);
+    const [seeds, weights] = await Promise.all([
       fetch(base + "model/seeds.json").then((r) => r.json()),
-      download(base + "model/weights.bin"),
+      download(base + "model/weights.bin", bytes),
     ]);
+    if (weights.byteLength !== bytes) {
+      throw new Error(`The model download was incomplete (${weights.byteLength} of ${bytes} bytes). Please reload the page.`);
+    }
     const model = new AMG.Transformer(manifest, AMG.decodeWeights(weights, manifest.dtype));
     return { model, manifest, seeds };
   })();
