@@ -14,6 +14,7 @@ GitHub Pages or any static host.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -140,11 +141,17 @@ def export(run: str | Path, out: str | Path, seed_len: int = 256, seeds_per_comp
     for js in BROWSER_JS.glob("*.js"):
         shutil.copy(js, out / "app" / js.name)
     shutil.copytree(FONTS, out / "static" / "fonts", dirs_exist_ok=True)
+    # A version tag in every URL, so browsers fetch fresh files after an update instead of
+    # reusing cached ones (GitHub Pages lets browsers cache for about 10 minutes).
+    digest = hashlib.sha256()
+    for f in sorted((out / "app").glob("*.js")) + sorted((out / "model").iterdir()):
+        digest.update(f.read_bytes())
+    version = digest.hexdigest()[:10]
     page = PAGE.read_text()
     marker = "<script>\nconst $ = "
     if marker not in page:
         raise SystemExit("Couldn't find where to add the browser backend in index.html.")
-    page = page.replace(marker, '<script src="app/backend.js"></script>\n' + marker, 1)
+    page = page.replace(marker, f'<script src="app/backend.js?v={version}" data-version="{version}"></script>\n' + marker, 1)
     (out / "index.html").write_text(page)
     (out / ".nojekyll").write_text("")  # serve files as they are on GitHub Pages
     size = (out / "model" / "weights.bin").stat().st_size / 1e6

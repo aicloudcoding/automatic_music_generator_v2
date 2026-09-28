@@ -1,5 +1,5 @@
 /* Runs the model in a background thread so the page stays responsive. */
-importScripts("engine.js");
+importScripts("engine.js" + self.location.search);  // same version tag as this file
 
 let ready = null;  // Promise of {model, manifest, seeds}
 
@@ -29,14 +29,14 @@ async function download(url, expectedBytes) {
   return out.buffer;
 }
 
-function load(base) {
+function load(base, v = "") {
   ready = (async () => {
-    const manifest = await fetch(base + "model/manifest.json").then((r) => r.json());
+    const manifest = await fetch(base + "model/manifest.json" + v).then((r) => r.json());
     const count = manifest.tensors.reduce((n, t) => n + t.shape.reduce((a, b) => a * b, 1), 0);
     const bytes = count * (manifest.dtype === "float32" ? 4 : 2);
     const [seeds, weights] = await Promise.all([
-      fetch(base + "model/seeds.json").then((r) => r.json()),
-      download(base + "model/weights.bin", bytes),
+      fetch(base + "model/seeds.json" + v).then((r) => r.json()),
+      download(base + "model/weights.bin" + v, bytes),
     ]);
     if (weights.byteLength !== bytes) {
       throw new Error(`The model download was incomplete (${weights.byteLength} of ${bytes} bytes). Please reload the page.`);
@@ -49,7 +49,7 @@ function load(base) {
 
 onmessage = async (e) => {
   const msg = e.data;
-  if (msg.type === "load") return load(msg.base);
+  if (msg.type === "load") return load(msg.base, msg.v || "");
   if (msg.type === "generate") {
     try {
       const { model, manifest, seeds } = await ready;

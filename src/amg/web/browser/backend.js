@@ -7,7 +7,9 @@
 (function () {
   "use strict";
   const base = new URL(".", document.baseURI).href;
-  const worker = new Worker(base + "app/worker.js");
+  const version = (document.currentScript && document.currentScript.dataset.version) || "";
+  const v = version ? "?v=" + version : "";
+  const worker = new Worker(base + "app/worker.js" + v);
   const pending = new Map();
   let nextId = 1, loadError = null;
   // While the model downloads (first visit only; then the browser caches it), the Generate
@@ -39,9 +41,9 @@
       }
     });
   });
-  worker.postMessage({ type: "load", base });
+  worker.postMessage({ type: "load", base, v });
 
-  const manifest = fetch(base + "model/manifest.json").then((r) => r.json());
+  const manifest = fetch(base + "model/manifest.json" + v).then((r) => r.json());
   const info = manifest.then((m) => ({
     run: m.run, arch: m.arch, params: m.params, pieces: m.pieces, results: m.results,
     composer_names: m.composer_names, vocab_size: m.vocab_size, seq_len: m.seq_len,

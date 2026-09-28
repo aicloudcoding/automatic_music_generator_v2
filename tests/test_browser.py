@@ -54,7 +54,7 @@ def test_export_writes_a_complete_site(site):
               "model/weights.bin", "model/seeds.json", "static/fonts/nunito-latin-wght-normal.woff2", ".nojekyll"):
         assert (out / f).exists(), f
     page = (out / "index.html").read_text()
-    assert '<script src="app/backend.js"></script>' in page and 'url("static/fonts/' in page
+    assert '<script src="app/backend.js?v=' in page and 'url("static/fonts/' in page
     man = json.loads((out / "model" / "manifest.json").read_text())
     assert man["composers"] == ["bach", "chopin", "liszt"] and man["seq_len"] == 32
 
