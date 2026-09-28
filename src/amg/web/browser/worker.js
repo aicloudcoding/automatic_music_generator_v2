@@ -3,15 +3,32 @@ importScripts("engine.js");
 
 let ready = null;  // Promise of {model, manifest, seeds}
 
+/** Fetch the weights, reporting progress so the page can show "Loading model… 45%". */
+async function download(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Couldn't download the model (${r.status}).`);
+  const total = Number(r.headers.get("Content-Length")) || 0;
+  if (!r.body || !total) return r.arrayBuffer();
+  const reader = r.body.getReader(), out = new Uint8Array(total);
+  let loaded = 0, lastPct = -1;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (loaded + value.length > total) return (await new Response(out.slice(0, loaded)).arrayBuffer()); // size changed
+    out.set(value, loaded);
+    loaded += value.length;
+    const pct = Math.floor((loaded / total) * 100);
+    if (pct !== lastPct) { lastPct = pct; postMessage({ type: "progress", pct }); }
+  }
+  return out.buffer.slice(0, loaded);
+}
+
 function load(base) {
   ready = (async () => {
     const [manifest, seeds, weights] = await Promise.all([
       fetch(base + "model/manifest.json").then((r) => r.json()),
       fetch(base + "model/seeds.json").then((r) => r.json()),
-      fetch(base + "model/weights.bin").then((r) => {
-        if (!r.ok) throw new Error(`Couldn't download the model (${r.status}).`);
-        return r.arrayBuffer();
-      }),
+      download(base + "model/weights.bin"),
     ]);
     const model = new AMG.Transformer(manifest, AMG.decodeWeights(weights, manifest.dtype));
     return { model, manifest, seeds };

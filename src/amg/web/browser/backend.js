@@ -10,11 +10,28 @@
   const worker = new Worker(base + "app/worker.js");
   const pending = new Map();
   let nextId = 1, loadError = null;
+  // While the model downloads (first visit only; then the browser caches it), the Generate
+  // button says so and waits, instead of looking stuck on "Composing…".
+  let status = "Loading model…", modelReady = false;
+  const showStatus = () => {
+    const btn = document.getElementById("generate");
+    if (!btn || modelReady) return;
+    btn.disabled = true;
+    btn.textContent = status;
+  };
+  document.addEventListener("DOMContentLoaded", showStatus);
   const whenReady = new Promise((resolve) => {
     worker.addEventListener("message", (e) => {
       const m = e.data;
-      if (m.type === "ready") resolve();
-      else if (m.type === "failed") { loadError = m.error; resolve(); }
+      if (m.type === "progress") { status = `Loading model… ${m.pct}%`; showStatus(); return; }
+      if (m.type === "ready" || m.type === "failed") {
+        if (m.type === "failed") loadError = m.error;
+        modelReady = true;
+        const btn = document.getElementById("generate");
+        if (btn && btn.textContent.startsWith("Loading model")) { btn.disabled = false; btn.textContent = "Generate"; }
+        resolve();
+        return;
+      }
       else if (pending.has(m.id)) {
         const { ok, fail } = pending.get(m.id);
         pending.delete(m.id);
