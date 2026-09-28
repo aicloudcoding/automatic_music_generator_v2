@@ -8,19 +8,34 @@ Pick a length and a composer, press **Generate**, and the model writes a short p
 
 ## Try it
 
-A trained model is included in `pretrained/transformer/`, so the web app works right away, even without a GPU. You need Python 3.10–3.13 (TensorFlow doesn't support 3.14 yet).
+A trained model is included in `pretrained/transformer/`, so the web app works right away, even without a GPU. TensorFlow needs **Python 3.10–3.13**; newer Ubuntu releases ship 3.14, so the steps below use [uv](https://docs.astral.sh/uv/) to get Python 3.12 without touching your system Python.
+
+**Linux, macOS or WSL:**
 
 ```bash
 git clone https://github.com/aicloudcoding/automatic_music_generator_v2.git
 cd automatic_music_generator_v2
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+curl -LsSf https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
+uv venv --python 3.12 .venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+uv pip install -e .
+python -m amg.web
+```
+
+**Windows (PowerShell), with Python 3.10–3.13 installed from python.org:**
+
+```powershell
+git clone https://github.com/aicloudcoding/automatic_music_generator_v2.git
+cd automatic_music_generator_v2
+py -3.12 -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
 python -m amg.web
 ```
 
-Then open **http://localhost:8000**.
+Then open **http://localhost:8000**. The first install downloads TensorFlow (several hundred MB), so it takes a few minutes.
 
 ## Results
 
