@@ -175,7 +175,7 @@ def test_run_results_from_history_when_stopped_early(tmp_path):
 
 def test_page_and_fonts_are_served(client):
     page = client.get("/").text
-    assert "/static/fonts/quicksand-latin-wght-normal.woff2" in page
+    assert "static/fonts/quicksand-latin-wght-normal.woff2" in page  # relative, so it also works on GitHub Pages
     assert client.get("/static/fonts/quicksand-latin-wght-normal.woff2").status_code == 200
     info = client.get("/api/info").json()
     assert info["params"] > 0 and "results" in info

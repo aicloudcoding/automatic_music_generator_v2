@@ -6,7 +6,9 @@ A Transformer that writes new classical piano music, note by note, in the style 
 
 Pick a length and a composer, press **Generate**, and the model writes a short passage. You can play it in the browser and download it as a MIDI file.
 
-## Try it
+**▶ Try it in your browser: [aicloudcoding.github.io/automatic_music_generator_v2](https://aicloudcoding.github.io/automatic_music_generator_v2/)** — nothing to install, works on phones.
+
+## Run it on your computer
 
 A trained model is included in `pretrained/transformer/`, so the web app works right away, even without a GPU. TensorFlow needs **Python 3.10–3.13**; newer Ubuntu releases ship 3.14, so the steps below use [uv](https://docs.astral.sh/uv/) to get Python 3.12 without touching your system Python.
 
@@ -36,6 +38,17 @@ python -m amg.web
 ```
 
 Then open **http://localhost:8000**. The first install downloads TensorFlow (several hundred MB), so it takes a few minutes.
+
+## The browser version
+
+The link above runs the same trained Transformer entirely in the visitor's browser, so it can be hosted for free on GitHub Pages with no server:
+
+- `python -m amg.export_web` writes the site to `docs/`: the same page as the Python app, the weights as a 9.8 MB half-precision file, and a few openings per composer.
+- `src/amg/web/browser/engine.js` is the model in JavaScript. It feeds one token at a time and keeps each layer's keys and values, so a new note only costs a small pass. The heavy matrix math runs in WebAssembly with SIMD (`kernels.wat`), with a plain JavaScript fallback. It runs in a Web Worker so the page stays responsive.
+- It matches the Keras model: the same top prediction at all 512 positions of a held-out window, with probabilities within 0.0015 (the difference comes from storing the weights at half precision). `tests/test_browser.py` checks this, plus decoding and MIDI output, against the Python code.
+- A 50-note piece takes about a second on a laptop.
+
+To publish your own model, run the export and push `docs/`; in the repo's **Settings → Pages**, deploy from the `main` branch, `/docs` folder.
 
 ## Results
 
@@ -89,7 +102,7 @@ Training works on a CPU but is much faster on an NVIDIA GPU. On Windows, TensorF
    uv venv --python 3.12 .venv && source .venv/bin/activate
    uv pip install -r requirements-gpu.txt && uv pip install -e .
    python -m amg.check_gpu     # should name your GPU
-   pytest                      # 43 tests
+   pytest                      # 48 tests (the browser checks need Node.js)
    ```
 
 Then train:

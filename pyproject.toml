@@ -32,7 +32,7 @@ amg-web = "amg.web.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"amg.web" = ["static/*.html", "static/fonts/*"]
+"amg.web" = ["static/*.html", "static/fonts/*", "browser/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
